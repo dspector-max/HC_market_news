@@ -1,0 +1,38 @@
+name: Daily Market Update
+
+on:
+  schedule:
+    # Runs at 6 PM EST every day
+    - cron: '0 23 * * *'
+  
+  # Let you run it manually from GitHub
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install packages
+        run: |
+          pip install yfinance feedparser
+      
+      - name: Run script
+        env:
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
+        run: python market_news.py
+      
+      - name: Save report
+        uses: actions/upload-artifact@v3
+        with:
+          name: report
+          path: latest_report.html
