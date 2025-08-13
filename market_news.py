@@ -7,6 +7,7 @@ from email.mime.multipart import MIMEMultipart
 import os
 import requests
 import json
+import time
 
 # Your companies to track
 COMPANIES = [
@@ -31,49 +32,67 @@ def get_stock_data(ticker):
                 'change': round(change, 2),
                 'change_pct': round(change_pct, 2)
             }
-    except:
+    except Exception as e:
+        print(f"Error getting stock data for {ticker}: {e}")
         return None
 
 def get_news(company_name, ticker):
-    """Get latest news"""
+    """Get latest news with summaries"""
     articles = []
     try:
         url = f"https://news.google.com/rss/search?q={company_name}+{ticker}&hl=en-US&gl=US&ceid=US:en"
         feed = feedparser.parse(url)
         
         for entry in feed.entries[:5]:  # Get top 5 articles
+            # Extract text from summary (remove HTML)
+            summary_text = entry.get('summary', '')
+            # Basic HTML removal
+            summary_text = summary_text.replace('<b>', '').replace('</b>', '')
+            summary_text = summary_text.replace('<a', ' <a').strip()
+            if '<' in summary_text:
+                summary_text = summary_text[:summary_text.index('<')]
+            
             articles.append({
                 'title': entry.title,
-                'link': entry.link
+                'link': entry.link,
+                'summary': summary_text[:200] if summary_text else entry.title
             })
-    except:
-        pass
+    except Exception as e:
+        print(f"Error getting news for {company_name}: {e}")
+    
     return articles
 
 def get_ai_summary(company_name, ticker, articles, stock_data):
-    """Generate AI summary using OpenAI"""
+    """Generate AI summary using OpenAI with better context"""
     api_key = os.environ.get('OPENAI_API_KEY')
     
     if not api_key:
+        print("No OpenAI API key found")
         return None
     
-    # Prepare context for AI
-    news_titles = "\n".join([f"- {article['title']}" for article in articles[:5]])
+    if not articles:
+        return f"No recent news found for {company_name}."
+    
+    # Build detailed context
+    news_context = "Recent news:\n"
+    for i, article in enumerate(articles[:5], 1):
+        news_context += f"{i}. {article['title']}\n"
+        if article.get('summary'):
+            news_context += f"   Context: {article['summary']}\n"
     
     if stock_data:
-        stock_context = f"Stock is {'up' if stock_data['change'] > 0 else 'down'} {abs(stock_data['change_pct']):.1f}% today at ${stock_data['price']}."
+        stock_context = f"\nStock Performance: {'UP' if stock_data['change'] > 0 else 'DOWN'} {abs(stock_data['change_pct']):.1f}% at ${stock_data['price']}."
     else:
-        stock_context = "Stock data unavailable."
+        stock_context = ""
     
-    prompt = f"""Based on these recent headlines about {company_name} ({ticker}) and today's stock performance, 
-provide a 2-3 sentence summary of the key developments and market sentiment.
+    prompt = f"""You are a financial analyst. Based on today's news and stock performance for {company_name} ({ticker}), 
+provide a 2-3 sentence analysis that explains WHY the stock might be moving and what investors should know.
+Be specific about {company_name}'s business, products, or recent events.
 
+{news_context}
 {stock_context}
 
-Recent headlines:
-{news_titles}
-
-Summary:"""
+Provide a brief, specific analysis about {company_name}:"""
     
     try:
         response = requests.post(
@@ -85,74 +104,92 @@ Summary:"""
             json={
                 "model": "gpt-3.5-turbo",
                 "messages": [
-                    {"role": "system", "content": "You are a concise financial analyst. Provide brief, insightful market summaries."},
+                    {"role": "system", "content": f"You are a concise financial analyst specializing in tech stocks. Always mention specific details about {company_name}'s products, leadership, or recent announcements when analyzing the news."},
                     {"role": "user", "content": prompt}
                 ],
-                "max_tokens": 100,
+                "max_tokens": 150,
                 "temperature": 0.7
-            }
+            },
+            timeout=10
         )
         
         if response.status_code == 200:
-            return response.json()['choices'][0]['message']['content'].strip()
+            summary = response.json()['choices'][0]['message']['content'].strip()
+            print(f"✅ AI summary generated for {company_name}")
+            return summary
         else:
-            print(f"AI API error: {response.status_code}")
+            print(f"AI API error for {company_name}: {response.status_code} - {response.text}")
             return None
     except Exception as e:
-        print(f"AI summary error: {e}")
+        print(f"AI summary error for {company_name}: {e}")
         return None
 
 def create_email_content():
     """Create the email with all the data"""
     html = f"""
     <html>
-    <body style="font-family: Arial, sans-serif;">
-        <h1>📈 Daily Market Update - {datetime.now().strftime('%B %d, %Y')}</h1>
-        <p style="color: #666;">AI-powered summaries of today's market movements and news</p>
+    <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
+        <h1 style="color: #2c3e50;">📈 Daily Market Update - {datetime.now().strftime('%B %d, %Y')}</h1>
+        <p style="color: #666;">AI-powered analysis of today's market movements</p>
+        <hr>
     """
     
     for company in COMPANIES:
+        print(f"Processing {company['name']}...")
+        
         # Get stock data
         stock = get_stock_data(company['ticker'])
         
+        # Get news FIRST (before using it)
+        news = get_news(company['name'], company['ticker'])
+        
+        # Now build the HTML
         if stock:
             # Determine emoji and color
             emoji = "📈" if stock['change'] > 0 else "📉"
-            color = "green" if stock['change'] > 0 else "red"
+            color = "#27ae60" if stock['change'] > 0 else "#e74c3c"
             
             html += f"""
-            <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 20px 0;">
-                <h2>{emoji} {company['name']} ({company['ticker']})</h2>
-                <p><strong>Price:</strong> ${stock['price']}<br>
-                <strong>Change:</strong> <span style="color: {color}">${stock['change']} ({stock['change_pct']:+.2f}%)</span></p>
+            <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 20px 0; background: #fafafa;">
+                <h2 style="color: #2c3e50; margin-top: 0;">{emoji} {company['name']} ({company['ticker']})</h2>
+                
+                <div style="background: white; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+                    <strong>Price:</strong> ${stock['price']} 
+                    <span style="color: {color}; font-weight: bold; margin-left: 20px;">
+                        {'+' if stock['change'] > 0 else ''}{stock['change']} ({stock['change_pct']:+.2f}%)
+                    </span>
+                </div>
             """
             
-            # Get news
-            news = get_news(company['name'], company['ticker'])
-            
-            # Get AI summary
+            # Get AI summary (with news context)
             ai_summary = get_ai_summary(company['name'], company['ticker'], news, stock)
             
             if ai_summary:
                 html += f"""
-                <div style="background: #f0f8ff; padding: 10px; border-radius: 5px; margin: 10px 0;">
-                    <strong>🤖 AI Summary:</strong><br>
-                    <em>{ai_summary}</em>
+                <div style="background: #e8f4f8; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #3498db;">
+                    <strong>🤖 AI Analysis:</strong><br>
+                    <em style="color: #2c3e50; line-height: 1.5;">{ai_summary}</em>
                 </div>
                 """
             
-            if news:
-                html += "<p><strong>📰 Latest Headlines:</strong></p><ul>"
-                for article in news[:3]:
-                    html += f'<li><a href="{article["link"]}" style="color: #0066cc;">{article["title"]}</a></li>'
-                html += "</ul>"
+            # Show news headlines
+            if news and len(news) > 0:
+                html += "<div><strong>📰 Latest Headlines:</strong><ul style='margin-top: 10px;'>"
+                for article in news[:3]:  # Show top 3 headlines
+                    html += f'<li style="margin: 5px 0;"><a href="{article["link"]}" style="color: #0066cc; text-decoration: none;">{article["title"]}</a></li>'
+                html += "</ul></div>"
+            else:
+                html += "<p><em>No recent news found</em></p>"
             
             html += "</div>"
+        
+        # Small delay to avoid rate limiting
+        time.sleep(0.5)
     
     html += """
     <hr style="margin-top: 30px;">
-    <p style="font-size: 12px; color: #888;">
-        Powered by OpenAI GPT-3.5 • <a href="https://github.com/yourusername/market-news">View on GitHub</a>
+    <p style="font-size: 12px; color: #888; text-align: center;">
+        Powered by OpenAI GPT-3.5 • Generated automatically via GitHub Actions
     </p>
     </body>
     </html>
@@ -171,7 +208,7 @@ def send_email(html_content):
     
     try:
         msg = MIMEMultipart()
-        msg['Subject'] = f"Market Update with AI Insights - {datetime.now().strftime('%B %d')}"
+        msg['Subject'] = f"Market Update with AI Analysis - {datetime.now().strftime('%B %d')}"
         msg['From'] = sender
         msg['To'] = ', '.join(recipients)
         
@@ -182,7 +219,7 @@ def send_email(html_content):
             server.login(sender, password)
             server.send_message(msg)
         
-        print("✅ Email sent!")
+        print("✅ Email sent successfully!")
         return True
     except Exception as e:
         print(f"❌ Email failed: {e}")
@@ -190,13 +227,18 @@ def send_email(html_content):
 
 # Main execution
 if __name__ == "__main__":
-    print("Starting market update with AI summaries...")
+    print("Starting market update with AI analysis...")
+    print(f"Time: {datetime.now()}")
+    
+    # Check for API key
+    if not os.environ.get('OPENAI_API_KEY'):
+        print("⚠️  Warning: OPENAI_API_KEY not set - AI summaries will be skipped")
     
     # Create the email content
     html = create_email_content()
     
     # Save locally
-    with open('latest_report.html', 'w') as f:
+    with open('latest_report.html', 'w', encoding='utf-8') as f:
         f.write(html)
     print("Report saved to latest_report.html")
     
