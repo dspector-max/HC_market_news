@@ -73,38 +73,49 @@ def get_news(company_name, ticker):
     return articles[:5]  # Return top 5 unique articles
 
 def get_ai_summary(company_name, ticker, articles, stock_data):
-    """Generate AI summary using OpenAI with better context"""
+    """Generate AI summary using OpenAI with better debugging"""
     api_key = os.environ.get('OPENAI_API_KEY')
     
     if not api_key:
-        print("No OpenAI API key found")
-        return None
+        print(f"❌ No OpenAI API key found for {company_name}")
+        return "AI summary unavailable - API key not configured"
     
-    if not articles:
-        return f"No recent news found for {company_name}."
+    # Debug: Show what we're working with
+    print(f"\n🔍 Generating AI summary for {company_name}:")
+    print(f"   - Articles found: {len(articles)}")
+    print(f"   - Stock data available: {stock_data is not None}")
     
-    # Build detailed context
-    news_context = "Recent news:\n"
+    if not articles or (len(articles) == 1 and 'No recent news found' in articles[0]['title']):
+        return f"Limited news coverage for {company_name} in recent days. Stock {'up' if stock_data and stock_data['change'] > 0 else 'down' if stock_data else 'data unavailable'}."
+    
+    # Build detailed context - include everything we have
+    news_context = f"News for {company_name} ({ticker}):\n"
     for i, article in enumerate(articles[:5], 1):
-        news_context += f"{i}. {article['title']}\n"
-        if article.get('summary'):
-            news_context += f"   Context: {article['summary']}\n"
+        news_context += f"\n{i}. Headline: {article['title']}"
+        if article.get('summary') and article['summary'] != article['title']:
+            news_context += f"\n   Details: {article['summary'][:150]}"
     
     if stock_data:
-        stock_context = f"\nStock Performance: {'UP' if stock_data['change'] > 0 else 'DOWN'} {abs(stock_data['change_pct']):.1f}% at ${stock_data['price']}."
+        direction = 'UP' if stock_data['change'] > 0 else 'DOWN'
+        stock_context = f"\n\nStock Movement: {ticker} is {direction} ${abs(stock_data['change']):.2f} ({stock_data['change_pct']:+.1f}%) to ${stock_data['price']}"
     else:
-        stock_context = ""
+        stock_context = f"\n\nStock data not available for {ticker}"
     
-    prompt = f"""You are a financial analyst. Based on today's news and stock performance for {company_name} ({ticker}), 
-provide a 2-3 sentence analysis that explains WHY the stock might be moving and what investors should know.
-Be specific about {company_name}'s business, products, or recent events.
+    full_context = news_context + stock_context
+    
+    # Debug: Show what we're sending to AI
+    print(f"   - Sending {len(full_context)} characters to OpenAI")
+    
+    prompt = f"""As a financial analyst, provide a 2-3 sentence analysis of {company_name} based on the following information.
+Focus on: 1) Why the stock might be moving this way, 2) Any notable business developments, 3) What investors should watch.
+Be specific about {company_name}'s business and market position.
 
-{news_context}
-{stock_context}
+{full_context}
 
-Provide a brief, specific analysis about {company_name}:"""
+Provide your analysis:"""
     
     try:
+        print(f"   - Calling OpenAI API...")
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers={
@@ -114,25 +125,30 @@ Provide a brief, specific analysis about {company_name}:"""
             json={
                 "model": "gpt-3.5-turbo",
                 "messages": [
-                    {"role": "system", "content": f"You are a concise financial analyst specializing in tech stocks. Always mention specific details about {company_name}'s products, leadership, or recent announcements when analyzing the news."},
+                    {"role": "system", "content": "You are a concise financial analyst. Provide specific, actionable insights about the company based on the provided context."},
                     {"role": "user", "content": prompt}
                 ],
                 "max_tokens": 150,
                 "temperature": 0.7
             },
-            timeout=10
+            timeout=15
         )
         
         if response.status_code == 200:
             summary = response.json()['choices'][0]['message']['content'].strip()
-            print(f"✅ AI summary generated for {company_name}")
+            print(f"   ✅ AI summary generated successfully")
             return summary
         else:
-            print(f"AI API error for {company_name}: {response.status_code} - {response.text}")
-            return None
+            error_msg = f"API error {response.status_code}: {response.text[:200]}"
+            print(f"   ❌ {error_msg}")
+            return f"AI analysis temporarily unavailable (API error {response.status_code})"
+            
+    except requests.exceptions.Timeout:
+        print(f"   ❌ OpenAI API timeout for {company_name}")
+        return "AI analysis timed out - trying again next run"
     except Exception as e:
-        print(f"AI summary error for {company_name}: {e}")
-        return None
+        print(f"   ❌ Error: {str(e)}")
+        return f"AI analysis error: {str(e)[:100]}"
 
 def create_email_content():
     """Create the email with all the data"""
