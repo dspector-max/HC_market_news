@@ -29,6 +29,7 @@ jobs:
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python market_news.py
       
       - name: Save report
