@@ -32,7 +32,7 @@ jobs:
         run: python market_news.py
       
       - name: Save report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: report
           path: latest_report.html
