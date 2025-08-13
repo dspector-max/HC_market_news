@@ -9,6 +9,17 @@ import requests
 import json
 import time
 
+# Debug: Check if secrets are loading
+print("=" * 50)
+print("CHECKING ENVIRONMENT VARIABLES:")
+print(f"EMAIL_SENDER exists: {bool(os.environ.get('EMAIL_SENDER'))}")
+print(f"EMAIL_PASSWORD exists: {bool(os.environ.get('EMAIL_PASSWORD'))}")
+print(f"OPENAI_API_KEY exists: {bool(os.environ.get('OPENAI_API_KEY'))}")
+if os.environ.get('OPENAI_API_KEY'):
+    key = os.environ.get('OPENAI_API_KEY')
+    print(f"OPENAI_API_KEY starts with: {key[:7]}...")
+print("=" * 50)
+
 # Your companies to track
 COMPANIES = [
     {'ticker': 'HIMS', 'name': 'Hims & Hers'},
