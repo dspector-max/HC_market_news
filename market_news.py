@@ -37,30 +37,40 @@ def get_stock_data(ticker):
         return None
 
 def get_news(company_name, ticker):
-    """Get latest news with summaries"""
+    """Get latest news - try multiple search strategies"""
     articles = []
-    try:
-        url = f"https://news.google.com/rss/search?q={company_name}+{ticker}&hl=en-US&gl=US&ceid=US:en"
-        feed = feedparser.parse(url)
-        
-        for entry in feed.entries[:5]:  # Get top 5 articles
-            # Extract text from summary (remove HTML)
-            summary_text = entry.get('summary', '')
-            # Basic HTML removal
-            summary_text = summary_text.replace('<b>', '').replace('</b>', '')
-            summary_text = summary_text.replace('<a', ' <a').strip()
-            if '<' in summary_text:
-                summary_text = summary_text[:summary_text.index('<')]
-            
-            articles.append({
-                'title': entry.title,
-                'link': entry.link,
-                'summary': summary_text[:200] if summary_text else entry.title
-            })
-    except Exception as e:
-        print(f"Error getting news for {company_name}: {e}")
     
-    return articles
+    # Try different search combinations
+    search_terms = [
+        f"{company_name} {ticker}",
+        f"{company_name}",
+        f"{ticker} stock",
+        f"{company_name} news"
+    ]
+    
+    for search_term in search_terms:
+        if len(articles) >= 3:  # Stop if we have enough articles
+            break
+            
+        try:
+            url = f"https://news.google.com/rss/search?q={search_term}&hl=en-US&gl=US&ceid=US:en"
+            feed = feedparser.parse(url)
+            
+            for entry in feed.entries[:5]:
+                # Avoid duplicates
+                if not any(article['title'] == entry.title for article in articles):
+                    articles.append({
+                        'title': entry.title,
+                        'link': entry.link,
+                        'summary': entry.get('summary', '')[:200]
+                    })
+        except Exception as e:
+            print(f"Error searching for {search_term}: {e}")
+    
+    if not articles:
+        print(f"No news found for {company_name} ({ticker}) after trying multiple searches")
+    
+    return articles[:5]  # Return top 5 unique articles
 
 def get_ai_summary(company_name, ticker, articles, stock_data):
     """Generate AI summary using OpenAI with better context"""
