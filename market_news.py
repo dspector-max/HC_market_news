@@ -48,40 +48,61 @@ def get_stock_data(ticker):
         return None
 
 def get_news(company_name, ticker):
-    """Get latest news - try multiple search strategies"""
+    """Get news from Google News and Seeking Alpha - company specific"""
     articles = []
+    seen_titles = set()
     
-    # Try different search combinations
-    search_terms = [
-        f"{company_name} {ticker}",
-        f"{company_name}",
-        f"{ticker} stock",
-        f"{company_name} news"
-    ]
+    print(f"\n📰 Searching news for {company_name} ({ticker})")
     
-    for search_term in search_terms:
-        if len(articles) >= 3:  # Stop if we have enough articles
-            break
-            
-        try:
-            url = f"https://news.google.com/rss/search?q={search_term}&hl=en-US&gl=US&ceid=US:en"
-            feed = feedparser.parse(url)
-            
-            for entry in feed.entries[:5]:
-                # Avoid duplicates
-                if not any(article['title'] == entry.title for article in articles):
-                    articles.append({
-                        'title': entry.title,
-                        'link': entry.link,
-                        'summary': entry.get('summary', '')[:200]
-                    })
-        except Exception as e:
-            print(f"Error searching for {search_term}: {e}")
+    # 1. GOOGLE NEWS - Single search
+    try:
+        url = f"https://news.google.com/rss/search?q={company_name}+OR+{ticker}&hl=en-US&gl=US&ceid=US:en"
+        feed = feedparser.parse(url)
+        
+        for entry in feed.entries[:10]:
+            title = entry.title
+            if title not in seen_titles:
+                seen_titles.add(title)
+                articles.append({
+                    'title': title,
+                    'link': entry.link,
+                    'source': 'Google News',
+                    'date': entry.get('published', 'Recent'),
+                    'summary': entry.get('summary', '')[:200]
+                })
+    except Exception as e:
+        print(f"   Error with Google News: {e}")
+    
+    # 2. SEEKING ALPHA - Single search
+    try:
+        url = f"https://seekingalpha.com/api/sa/combined/{ticker}.xml"
+        feed = feedparser.parse(url)
+        
+        for entry in feed.entries[:10]:
+            title = entry.title
+            if title not in seen_titles:
+                seen_titles.add(title)
+                articles.append({
+                    'title': title,
+                    'link': entry.link,
+                    'source': 'Seeking Alpha',
+                    'date': entry.get('published', 'Recent'),
+                    'summary': entry.get('summary', '')[:200]
+                })
+    except Exception as e:
+        print(f"   Seeking Alpha not available for {ticker}")
+    
+    print(f"   Found {len(articles)} articles")
     
     if not articles:
-        print(f"No news found for {company_name} ({ticker}) after trying multiple searches")
+        articles = [{
+            'title': f'No recent news found for {company_name}',
+            'link': '#',
+            'source': 'N/A',
+            'summary': 'No recent coverage found.'
+        }]
     
-    return articles[:5]  # Return top 5 unique articles
+    return articles[:5]
 
 def get_ai_summary(company_name, ticker, articles, stock_data):
     """Generate AI summary using OpenAI with better debugging"""
@@ -117,8 +138,8 @@ def get_ai_summary(company_name, ticker, articles, stock_data):
     # Debug: Show what we're sending to AI
     print(f"   - Sending {len(full_context)} characters to OpenAI")
     
-    prompt = f"""As a financial analyst, provide a 2-3 sentence analysis of {company_name} based on the following information.
-Focus on: 1) Why the stock might be moving this way, 2) Any notable business developments, 3) What investors should watch.
+    prompt = f"""I am a healthcare-focused venture capital investor with investments in similar companies, provide a 2-3 sentence analysis of {company_name} based on the following information.
+Focus on: 1) What has happened in the last 24-hours that has driven any changes in the share price or market perception, 2) Any notable business developments or earnings releases, 3) any upcoming events / earnings reports to watch.
 Be specific about {company_name}'s business and market position.
 
 {full_context}
