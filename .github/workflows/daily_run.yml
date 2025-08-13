@@ -22,7 +22,7 @@ jobs:
       
       - name: Install packages
         run: |
-          pip install yfinance feedparser
+          pip install yfinance feedparser requests
       
       - name: Run script
         env:
