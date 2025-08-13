@@ -8,11 +8,10 @@ import os
 
 # Your companies to track
 COMPANIES = [
-    {'ticker': 'AAPL', 'name': 'Apple'},
-    {'ticker': 'MSFT', 'name': 'Microsoft'},
-    {'ticker': 'GOOGL', 'name': 'Google'},
-    {'ticker': 'TSLA', 'name': 'Tesla'},
-    {'ticker': 'NVDA', 'name': 'NVIDIA'}
+    {'ticker': 'HIMS', 'name': 'Hims & Hers'},
+    {'ticker': 'HNGE', 'name': 'Hinge Health'},
+    {'ticker': 'OMDA', 'name': 'Omada Health'},
+    {'ticker': 'HTFL', 'name': 'HeartFlow'},
 ]
 
 def get_stock_data(ticker):
