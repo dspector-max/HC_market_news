@@ -26,6 +26,9 @@ COMPANIES = [
     {'ticker': 'HNGE', 'name': 'Hinge Health'},
     {'ticker': 'OMDA', 'name': 'Omada Health'},
     {'ticker': 'HTFL', 'name': 'HeartFlow'},
+    {'ticker': 'DOCS', 'name': 'Doximity'},
+    {'ticker': 'OSCR', 'name': 'Oscar'},
+    {'ticker': 'ALHC', 'name': 'Alignment'},
 ]
 
 def get_stock_data(ticker):
@@ -197,6 +200,11 @@ def create_email_content():
         
         # Get stock data
         stock = get_stock_data(company['ticker'])
+
+         # ADD THIS LINE - skip if movement < 2%
+        if stock and abs(stock['change_pct']) < 2.0:
+            print(f"   ⏭️ Skipping {company['name']} - only {abs(stock['change_pct']):.1f}% movement")
+            continue
         
         # Get news FIRST (before using it)
         news = get_news(company['name'], company['ticker'])
