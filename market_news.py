@@ -293,6 +293,13 @@ def send_email(html_content):
 
 # Main execution
 if __name__ == "__main__":
+    # CHECK IF IT'S A WEEKDAY - ADD THESE 5 LINES
+    today = datetime.now()
+    if today.weekday() >= 5:  # 5=Saturday, 6=Sunday
+        print(f"🚫 Skipping - Today is {today.strftime('%A')} (weekend)")
+        print("Market updates only run on weekdays.")
+        sys.exit(0)
+        
     print("Starting market update with AI analysis...")
     print(f"Time: {datetime.now()}")
     
