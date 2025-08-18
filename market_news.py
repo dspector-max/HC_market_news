@@ -8,6 +8,7 @@ import os
 import requests
 import json
 import time
+import sys
 
 # Debug: Check if secrets are loading
 print("=" * 50)
@@ -28,7 +29,15 @@ COMPANIES = [
     {'ticker': 'HTFL', 'name': 'HeartFlow'},
     {'ticker': 'DOCS', 'name': 'Doximity'},
     {'ticker': 'OSCR', 'name': 'Oscar'},
-    {'ticker': 'ALHC', 'name': 'Alignment'},
+    {'ticker': 'UNH', 'name': 'UnitedHealth'},
+    {'ticker': 'CVS', 'name': 'CVS'},
+    {'ticker': 'CNC', 'name': 'Centene'},
+    {'ticker': 'ELV', 'name': 'Elevance'},
+    {'ticker': 'CI', 'name': 'Cigna'},
+    {'ticker': 'TEM', 'name': 'Tempus AI'},
+    {'ticker': 'SDGR', 'name': 'Schrodinger'},
+    {'ticker': 'DNA', 'name': 'Ginkgo Bioworks'},
+    {'ticker': 'TWST', 'name': 'Twist Bioscience'},
 ]
 
 def get_stock_data(ticker):
