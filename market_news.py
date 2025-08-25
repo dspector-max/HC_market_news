@@ -211,8 +211,8 @@ def create_email_content():
         # Get stock data
         stock = get_stock_data(company['ticker'])
 
-         # ADD THIS LINE - skip if movement < 2%
-        if stock and abs(stock['change_pct']) < 2.0:
+         # ADD THIS LINE - skip if movement < 3%
+        if stock and abs(stock['change_pct']) < 3.0:
             print(f"   ⏭️ Skipping {company['name']} - only {abs(stock['change_pct']):.1f}% movement")
             continue
         
