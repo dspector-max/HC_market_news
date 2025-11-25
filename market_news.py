@@ -38,6 +38,8 @@ COMPANIES = [
     {'ticker': 'SDGR', 'name': 'Schrodinger'},
     {'ticker': 'DNA', 'name': 'Ginkgo Bioworks'},
     {'ticker': 'TWST', 'name': 'Twist Bioscience'},
+    {'ticker': 'MOH', 'name': 'Molina Healthcare'},
+    {'ticker': 'HUM', 'name': 'Humana'},
 ]
 
 def get_stock_data(ticker):
