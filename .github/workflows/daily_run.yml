@@ -2,8 +2,8 @@ name: Daily Market Update
 
 on:
   schedule:
-    # Runs at 6 PM EST every day
-    - cron: '0 23 * * *'
+    # Runs at 6 PM EST every weekday (11 PM UTC = 6 PM EST)
+    - cron: '0 23 * * 1-5'
   
   # Let you run it manually from GitHub
   workflow_dispatch:
@@ -22,7 +22,7 @@ jobs:
       
       - name: Install packages
         run: |
-          pip install yfinance feedparser requests
+          pip install yfinance feedparser pandas requests
       
       - name: Run script
         env:
@@ -35,5 +35,8 @@ jobs:
       - name: Save report
         uses: actions/upload-artifact@v4
         with:
-          name: report
-          path: latest_report.html
+          name: report-${{ github.run_number }}
+          path: |
+            latest_report.html
+            weekly_multiples.html
+          if-no-files-found: ignore
