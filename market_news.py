@@ -33,11 +33,11 @@ SECTORS = {
         {'ticker': 'MOH', 'name': 'Molina Healthcare'},
         {'ticker': 'HUM', 'name': 'Humana'},
         {'ticker': 'OSCR', 'name': 'Oscar Health'},
-        {'ticker': 'DOCS', 'name': 'Doximity'},
     ],
     'Software/Tech': [
         {'ticker': 'TEM', 'name': 'Tempus AI'},
         {'ticker': 'HIMS', 'name': 'Hims & Hers'},
+        {'ticker': 'DOCS', 'name': 'Doximity'},
         {'ticker': 'HNGE', 'name': 'Hinge Health'},
         {'ticker': 'OMDA', 'name': 'Omada Health'},
         {'ticker': 'HTFL', 'name': 'HeartFlow'},
