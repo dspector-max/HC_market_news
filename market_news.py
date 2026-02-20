@@ -23,31 +23,47 @@ if os.environ.get('OPENAI_API_KEY'):
 print("=" * 50)
 
 # Companies organized by sector
+# basket_only=True means the company contributes to sector averages but doesn't get individual daily/weekly updates
 SECTORS = {
     'Healthcare Services': [
-        {'ticker': 'UNH', 'name': 'UnitedHealth'},
-        {'ticker': 'CVS', 'name': 'CVS Health'},
-        {'ticker': 'CNC', 'name': 'Centene'},
-        {'ticker': 'ELV', 'name': 'Elevance'},
-        {'ticker': 'CI', 'name': 'Cigna'},
-        {'ticker': 'MOH', 'name': 'Molina Healthcare'},
-        {'ticker': 'HUM', 'name': 'Humana'},
-        {'ticker': 'OSCR', 'name': 'Oscar Health'},
+        {'ticker': 'UNH', 'name': 'UnitedHealth', 'basket_only': False},
+        {'ticker': 'CVS', 'name': 'CVS Health', 'basket_only': False},
+        {'ticker': 'CNC', 'name': 'Centene', 'basket_only': False},
+        {'ticker': 'ELV', 'name': 'Elevance', 'basket_only': False},
+        {'ticker': 'CI', 'name': 'Cigna', 'basket_only': False},
+        {'ticker': 'MOH', 'name': 'Molina Healthcare', 'basket_only': False},
+        {'ticker': 'HUM', 'name': 'Humana', 'basket_only': False},
+        {'ticker': 'OSCR', 'name': 'Oscar Health', 'basket_only': False},
+        {'ticker': 'PRVA', 'name': 'Privia Health', 'basket_only': False},
     ],
     'Software/Tech': [
-        {'ticker': 'TEM', 'name': 'Tempus AI'},
-        {'ticker': 'HIMS', 'name': 'Hims & Hers'},
-        {'ticker': 'DOCS', 'name': 'Doximity'},
-        {'ticker': 'HNGE', 'name': 'Hinge Health'},
-        {'ticker': 'OMDA', 'name': 'Omada Health'},
-        {'ticker': 'HTFL', 'name': 'HeartFlow'},
+        # Core portfolio - get individual updates
+        {'ticker': 'TEM', 'name': 'Tempus AI', 'basket_only': False},
+        {'ticker': 'HIMS', 'name': 'Hims & Hers', 'basket_only': False},
+        {'ticker': 'HNGE', 'name': 'Hinge Health', 'basket_only': False},
+        {'ticker': 'OMDA', 'name': 'Omada Health', 'basket_only': False},
+        {'ticker': 'DOCS', 'name': 'Doximity', 'basket_only': False},
+        {'ticker': 'VEEV', 'name': 'Veeva Systems', 'basket_only': False},
+        # Benchmark only - contribute to sector averages but no individual updates
+        {'ticker': 'IQV', 'name': 'IQVIA', 'basket_only': True},
+        {'ticker': 'TDOC', 'name': 'Teladoc', 'basket_only': True},
     ],
     'Life Sciences': [
-        {'ticker': 'SDGR', 'name': 'Schrodinger'},
-        {'ticker': 'DNA', 'name': 'Ginkgo Bioworks'},
-        {'ticker': 'TWST', 'name': 'Twist Bioscience'},
-        {'ticker': 'LLY', 'name': 'Eli Lilly'},
-        {'ticker': 'NVO', 'name': 'Novo Nordisk'},
+        # Core portfolio - get individual updates
+        {'ticker': 'SDGR', 'name': 'Schrodinger', 'basket_only': False},
+        {'ticker': 'DNA', 'name': 'Ginkgo Bioworks', 'basket_only': False},
+        {'ticker': 'TWST', 'name': 'Twist Bioscience', 'basket_only': False},
+        {'ticker': 'LLY', 'name': 'Eli Lilly', 'basket_only': False},
+        {'ticker': 'NVO', 'name': 'Novo Nordisk', 'basket_only': False},
+        # Benchmark only - contribute to sector averages but no individual updates
+        {'ticker': 'PFE', 'name': 'Pfizer', 'basket_only': True},
+        {'ticker': 'JNJ', 'name': 'Johnson & Johnson', 'basket_only': True},
+        {'ticker': 'ABBV', 'name': 'AbbVie', 'basket_only': True},
+        {'ticker': 'RHHBY', 'name': 'Roche', 'basket_only': True},
+        {'ticker': 'MRK', 'name': 'Merck', 'basket_only': True},
+        {'ticker': 'AZN', 'name': 'AstraZeneca', 'basket_only': True},
+        {'ticker': 'NVS', 'name': 'Novartis', 'basket_only': True},
+        {'ticker': 'AMGN', 'name': 'Amgen', 'basket_only': True},
     ]
 }
 
@@ -314,13 +330,81 @@ Provide your analysis:"""
         print(f"   ❌ Error: {str(e)}")
         return f"AI analysis error: {str(e)[:100]}"
 
+def get_sector_vwap_summary():
+    """Calculate average VWAP deviations for each sector"""
+    sector_summary = {}
+    
+    for sector_name, companies in SECTORS.items():
+        vwap_3m_list = []
+        vwap_6m_list = []
+        vwap_1y_list = []
+        
+        for company in companies:
+            stock = get_stock_data_with_vwap(company['ticker'])
+            if stock:
+                if stock.get('vwap_3m_dev') is not None:
+                    vwap_3m_list.append(stock['vwap_3m_dev'])
+                if stock.get('vwap_6m_dev') is not None:
+                    vwap_6m_list.append(stock['vwap_6m_dev'])
+                if stock.get('vwap_1y_dev') is not None:
+                    vwap_1y_list.append(stock['vwap_1y_dev'])
+            time.sleep(0.2)  # Rate limiting
+        
+        sector_summary[sector_name] = {
+            'vwap_3m_avg': round(sum(vwap_3m_list) / len(vwap_3m_list), 1) if vwap_3m_list else None,
+            'vwap_6m_avg': round(sum(vwap_6m_list) / len(vwap_6m_list), 1) if vwap_6m_list else None,
+            'vwap_1y_avg': round(sum(vwap_1y_list) / len(vwap_1y_list), 1) if vwap_1y_list else None,
+        }
+    
+    return sector_summary
+
 def create_daily_email():
     """Create daily email with significant movers by sector"""
+    print("\n📊 Calculating sector-level VWAP summaries...")
+    sector_vwap = get_sector_vwap_summary()
+    
     html = f"""
     <html>
     <body style="font-family: Arial, sans-serif; max-width: 900px; margin: 0 auto;">
         <h1 style="color: #2c3e50;">📈 Daily Market Update - {datetime.now().strftime('%B %d, %Y')}</h1>
         <p style="color: #666;">Significant movers (>3%) with AI-powered analysis</p>
+        <hr>
+        
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h2 style="color: #2c3e50; margin-top: 0;">📊 Sector Overview - VWAP Position</h2>
+            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Average deviation from VWAP across all companies in each sector</p>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #e9ecef; border-bottom: 2px solid #dee2e6;">
+                        <th style="padding: 12px; text-align: left;">Sector</th>
+                        <th style="padding: 12px; text-align: center;">3-Month</th>
+                        <th style="padding: 12px; text-align: center;">6-Month</th>
+                        <th style="padding: 12px; text-align: center;">1-Year</th>
+                    </tr>
+                </thead>
+                <tbody>
+    """
+    
+    for sector_name, metrics in sector_vwap.items():
+        def format_vwap_cell(value):
+            if value is None:
+                return 'N/A'
+            color = '#27ae60' if value > 0 else '#e74c3c'
+            return f'<span style="color: {color}; font-weight: bold;">{value:+.1f}%</span>'
+        
+        html += f"""
+                    <tr style="border-bottom: 1px solid #dee2e6;">
+                        <td style="padding: 12px;"><strong>{sector_name}</strong></td>
+                        <td style="padding: 12px; text-align: center;">{format_vwap_cell(metrics['vwap_3m_avg'])}</td>
+                        <td style="padding: 12px; text-align: center;">{format_vwap_cell(metrics['vwap_6m_avg'])}</td>
+                        <td style="padding: 12px; text-align: center;">{format_vwap_cell(metrics['vwap_1y_avg'])}</td>
+                    </tr>
+        """
+    
+    html += """
+                </tbody>
+            </table>
+        </div>
         <hr>
     """
     
@@ -332,6 +416,10 @@ def create_daily_email():
         sector_has_movers = False
         
         for company in companies:
+            # Skip basket-only companies in daily/weekly individual updates
+            if company.get('basket_only', False):
+                continue
+                
             print(f"Processing {company['name']} ({sector_name})...")
             
             # Get stock data with VWAP
@@ -444,13 +532,83 @@ def create_daily_email():
     """
     return html
 
+def get_sector_multiples_summary():
+    """Calculate average valuation multiples for each sector"""
+    sector_summary = {}
+    
+    for sector_name, companies in SECTORS.items():
+        ev_revenue_list = []
+        ev_gp_list = []
+        ev_ebitda_list = []
+        
+        for company in companies:
+            multiples = get_valuation_multiples(company['ticker'])
+            if multiples:
+                if multiples.get('ev_revenue') is not None:
+                    ev_revenue_list.append(multiples['ev_revenue'])
+                if multiples.get('ev_gross_profit') is not None:
+                    ev_gp_list.append(multiples['ev_gross_profit'])
+                if multiples.get('ev_ebitda') is not None:
+                    ev_ebitda_list.append(multiples['ev_ebitda'])
+            time.sleep(0.2)  # Rate limiting
+        
+        sector_summary[sector_name] = {
+            'ev_revenue_avg': round(sum(ev_revenue_list) / len(ev_revenue_list), 1) if ev_revenue_list else None,
+            'ev_gp_avg': round(sum(ev_gp_list) / len(ev_gp_list), 1) if ev_gp_list else None,
+            'ev_ebitda_avg': round(sum(ev_ebitda_list) / len(ev_ebitda_list), 1) if ev_ebitda_list else None,
+        }
+    
+    return sector_summary
+
 def create_weekly_email():
     """Create Monday email with valuation multiples and upcoming events"""
+    print("\n📊 Calculating sector-level valuation multiples...")
+    sector_multiples = get_sector_multiples_summary()
+    
     html = f"""
     <html>
     <body style="font-family: Arial, sans-serif; max-width: 900px; margin: 0 auto;">
         <h1 style="color: #2c3e50;">📊 Weekly Valuation Dashboard - {datetime.now().strftime('%B %d, %Y')}</h1>
         <p style="color: #666;">Key multiples and upcoming events</p>
+        <hr>
+        
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h2 style="color: #2c3e50; margin-top: 0;">📊 Sector Overview - Valuation Multiples</h2>
+            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Average multiples across all companies in each sector</p>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #e9ecef; border-bottom: 2px solid #dee2e6;">
+                        <th style="padding: 12px; text-align: left;">Sector</th>
+                        <th style="padding: 12px; text-align: center;">Avg EV/Revenue</th>
+                        <th style="padding: 12px; text-align: center;">Avg EV/Gross Profit</th>
+                        <th style="padding: 12px; text-align: center;">Avg EV/EBITDA</th>
+                    </tr>
+                </thead>
+                <tbody>
+    """
+    
+    for sector_name, metrics in sector_multiples.items():
+        def format_multiple_cell(value):
+            if value is None:
+                return 'N/A'
+            return f'<span style="font-weight: bold;">{value:.1f}x</span>'
+        
+        html += f"""
+                    <tr style="border-bottom: 1px solid #dee2e6;">
+                        <td style="padding: 12px;"><strong>{sector_name}</strong></td>
+                        <td style="padding: 12px; text-align: center;">{format_multiple_cell(metrics['ev_revenue_avg'])}</td>
+                        <td style="padding: 12px; text-align: center;">{format_multiple_cell(metrics['ev_gp_avg'])}</td>
+                        <td style="padding: 12px; text-align: center;">{format_multiple_cell(metrics['ev_ebitda_avg'])}</td>
+                    </tr>
+        """
+    
+    html += """
+                </tbody>
+            </table>
+            <p style="color: #888; font-size: 12px; margin-top: 15px; font-style: italic;">
+                💡 Use sector averages to identify relative value: companies trading below sector average may be undervalued, while those above may be premium or growth stories.
+            </p>
+        </div>
         <hr>
     """
     
@@ -475,6 +633,10 @@ def create_weekly_email():
         """
         
         for company in companies:
+            # Skip basket-only companies in individual updates
+            if company.get('basket_only', False):
+                continue
+                
             print(f"Getting multiples for {company['name']}...")
             
             multiples = get_valuation_multiples(company['ticker'])
